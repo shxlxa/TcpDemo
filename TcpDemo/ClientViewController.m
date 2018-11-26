@@ -8,14 +8,14 @@
 
 #import "ClientViewController.h"
 #import "GCDAsyncSocket.h"
-
+#import "constant.h"
 
 @interface ClientViewController ()
 @property (weak, nonatomic) IBOutlet UITextField *textfield;
 @property (weak, nonatomic) IBOutlet UIButton *sendMessage;
 @property (weak, nonatomic) IBOutlet UIButton *quitBtn;
 
-@property (nonatomic) GCDAsyncSocket * clickSocket;
+@property (nonatomic) GCDAsyncSocket *clickSocket;
 
 @end
 
@@ -25,7 +25,6 @@
 - (void)dealloc{
 //    [self.clickSocket removeObserver:self forKeyPath:@"isConnected"];
 }
-
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -39,8 +38,32 @@
 
 //断开连接
 - (IBAction)quitBtnClick:(id)sender {
-    
     [self.clickSocket disconnect];
+}
+
+- (IBAction)sendImage:(id)sender {
+    if([self.clickSocket isConnected]){
+        UIImage *image = [UIImage imageNamed:@"tcp.png"];
+        NSData *imageData = UIImagePNGRepresentation(image);
+        
+        //1、定义数据格式
+        NSMutableData *totalData = [NSMutableData data];
+        
+        //2、拼接总长度
+        unsigned int totalSize =  4 + 4 + (int)imageData.length;
+        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
+        [totalData appendData:totalSizeData];
+        
+        //3、拼接指令长度
+        unsigned int commandID =  MsgTypeImage;
+        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+        [totalData appendData:commandIDData];
+        
+        //4、拼接图片
+        [totalData appendData:imageData];
+        
+        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
+    }
 }
 
 //发送数据
@@ -50,11 +73,27 @@
         return;
     }
     if([self.clickSocket isConnected]){
-        NSData * data = [sendText dataUsingEncoding:NSUTF8StringEncoding];
+        NSData * msgData = [sendText dataUsingEncoding:NSUTF8StringEncoding];
         
-        //        UIImage *image = [UIImage imageNamed:@"tcp.png"];
-        //        NSData* data = UIImagePNGRepresentation(image);
-        [self.clickSocket writeData:data withTimeout:-1 tag:0];
+//        NSString *path = [[NSBundle mainBundle] pathForResource:@"imageJson" ofType:@"json"];
+//        NSData *msgData = [[NSData alloc] initWithContentsOfFile:path];
+        
+        NSMutableData *totalData = [NSMutableData data];
+        
+        //2、拼接总长度
+        unsigned int totalSize =  4 + 4 + (int)msgData.length;
+        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
+        [totalData appendData:totalSizeData];
+        
+        //3、拼接指令长度
+        unsigned int commandID =  MsgTypeString;
+        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+        [totalData appendData:commandIDData];
+        
+        //4、拼接
+        [totalData appendData:msgData];
+        NSLog(@"cft-send totalData:%@",totalData);
+        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
     }
 }
 

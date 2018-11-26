@@ -9,18 +9,21 @@
 #import "ViewController.h"
 #import "ClientViewController.h"
 #import "GCDAsyncSocket.h"
+#import "constant.h"
 
 @interface ViewController ()<UITableViewDataSource,GCDAsyncSocketDelegate>
 
 @property (nonatomic) UITableView * tableView;
-
 @property (nonatomic) NSMutableArray * dataSource;
-
 @property (nonatomic) GCDAsyncSocket * serverSocket;
 
 //保存接收链接时生成的新的socket
 @property(nonatomic)GCDAsyncSocket   *acceptNewSocket;
 @property (weak, nonatomic) IBOutlet UIImageView *icon;
+
+@property (strong ,nonatomic) NSMutableData *dataM;
+@property(assign ,nonatomic)unsigned int totalSize;
+@property (assign ,nonatomic)unsigned int currentCommandId;
 
 @end
 
@@ -34,7 +37,7 @@
 
 - (void)createTableView{
     self.dataSource = [NSMutableArray array];
-    self.tableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 100, self.view.bounds.size.width, 300)];
+    self.tableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 64, self.view.bounds.size.width, self.view.bounds.size.height-64)];
     self.tableView.dataSource = self;
     [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"cellId"];
     [self.view addSubview:self.tableView];
@@ -81,43 +84,92 @@
 }
 
 -(void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag{
-    
-//    dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-//    dispatch_async(globalQueue, ^{
-//        UIImage *image = [UIImage imageWithData:data];
-//        dispatch_async(dispatch_get_main_queue(), ^{
-//            _icon.image = image;
-//            UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
-//
-//        });
-//    });
-    
-    NSString * receiveMessage = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    if(receiveMessage){
-        [self.dataSource addObject:receiveMessage];
-        [self.tableView reloadData];
+    NSLog(@"cft666-didReadData----");
+    if(self.dataM.length == 0){
+        // 获取总的数据包大小
+        NSData *totalSizeData = [data subdataWithRange:NSMakeRange(0, 4)];
+        unsigned int totalSize = 0;
+        //读取前四个字节
+        [totalSizeData getBytes:&totalSize length:4];
+        NSLog(@"接收总数据的大小 %u",totalSize);
+        self.totalSize = totalSize;
+        // 获取指令类型
+        NSData *commandIdData = [data subdataWithRange:NSMakeRange(4, 4)];
+        unsigned int commandId = 0;
+        [commandIdData getBytes:&commandId length:4];
+        self.currentCommandId = commandId;
         
-        //发送确认包，服务器回执
-        NSString * ackMessage = @"服务端回执";
-        NSData * writeData = [ackMessage dataUsingEncoding:NSUTF8StringEncoding];
-        [self.acceptNewSocket writeData:writeData withTimeout:-1 tag:0];
-        
-        //需要等待数据到来
-        [self.acceptNewSocket readDataWithTimeout:-1 tag:0];
+        NSLog(@"cft-commondID:%d totalSize:%d",commandId,totalSize);
+    }
+    // 2.拼接二进度
+    [self.dataM appendData:data];
+    
+    // 3.图片数据已经接收完成
+    // 判断当前是否是图片数据的最后一段?
+    NSLog(@"此次接收的数据包大小 %ld",data.length);
+    if (self.dataM.length == self.totalSize) {
+        NSLog(@"数据已经接收完成");
+        if (self.currentCommandId == MsgTypeImage) {//图片
+            [self saveImage];
+        }else if (self.currentCommandId == MsgTypeString){
+            NSData *msgData = [self.dataM subdataWithRange:NSMakeRange(8, self.dataM.length - 8)];
+            NSString *receiveMessage = [[NSString alloc]initWithData:msgData encoding:NSUTF8StringEncoding];
+            if(receiveMessage){
+                //清空data
+                self.dataM = [NSMutableData data];
+                NSLog(@"cft-receive msg:%@",receiveMessage);
+                [self.dataSource addObject:receiveMessage];
+                [self.tableView reloadData];
+                
+                //发送确认包，服务器回执
+                NSString *ackMessage = @"服务端回执";
+                NSData   *writeData = [ackMessage dataUsingEncoding:NSUTF8StringEncoding];
+                [self.acceptNewSocket writeData:writeData withTimeout:-1 tag:0];
+            }
+        }
+    }
+    //需要等待数据到来
+     [self.acceptNewSocket readDataWithTimeout:-1 tag:0];
+}
+
+-(void)saveImage{
+    NSData *imgData = [self.dataM subdataWithRange:NSMakeRange(8, self.dataM.length - 8)];
+    dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_async(globalQueue, ^{
+        UIImage *acceptImage = [UIImage imageWithData:imgData];
+        if (acceptImage == nil) {
+            NSLog(@"cft-不是图片");
+            return;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIImageWriteToSavedPhotosAlbum(acceptImage, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+            self.dataM = [NSMutableData data];
+        });
+    });
+}
+
+// 成功保存图片到相册中, 必须调用此方法, 否则会报参数越界错误
+- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo{
+    if (error) {
+        NSLog(@"保存失败");
+    }else{
+        NSLog(@"cft-图片保存成功--");
     }
 }
-// 成功保存图片到相册中, 必须调用此方法, 否则会报参数越界错误
-//- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo{
-//    if (error) {
-//        NSLog(@"保存失败");
-//    }
-//}
 
 -(void)socket:(GCDAsyncSocket *)sock didWriteDataWithTag:(long)tag{
     NSLog(@"【服务端】: 回执发送完毕");
 }
 
 
-
+-(NSMutableData *)dataM{
+    if (!_dataM) {
+        _dataM = [NSMutableData data];
+    }
+    return _dataM;
+}
 
 @end
+/*
+ 1个汉字3个字节，一个字母一个字节
+ */

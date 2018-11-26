@@ -43,5 +43,7 @@
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>photoLibraryDesciption</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>允许保存图片到相册吗？</string>
 </dict>
 </plist>
