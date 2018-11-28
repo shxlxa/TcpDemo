@@ -45,5 +45,7 @@
 	<string>photoLibraryDesciption</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>允许保存图片到相册吗？</string>
+	<key>NSCameraUsageDescription</key>
+	<string>允许拍照吗？</string>
 </dict>
 </plist>

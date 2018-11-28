@@ -10,6 +10,7 @@
 #import "ClientViewController.h"
 #import "GCDAsyncSocket.h"
 #import "constant.h"
+#import "Tools.h"
 
 @interface ViewController ()<UITableViewDataSource,GCDAsyncSocketDelegate>
 
@@ -25,6 +26,8 @@
 @property(assign ,nonatomic)unsigned int totalSize;
 @property (assign ,nonatomic)unsigned int currentCommandId;
 
+@property (nonatomic, strong) UIImageView  *imageView;
+
 @end
 
 @implementation ViewController
@@ -33,11 +36,12 @@
     [super viewDidLoad];
     [self createTableView];
     [self createSocket];
+    [self.view addSubview:self.imageView];
 }
 
 - (void)createTableView{
     self.dataSource = [NSMutableArray array];
-    self.tableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 64, self.view.bounds.size.width, self.view.bounds.size.height-64)];
+    self.tableView = [[UITableView alloc]initWithFrame:CGRectMake(0, 64, self.view.bounds.size.width, self.view.bounds.size.height-64-200)];
     self.tableView.dataSource = self;
     [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"cellId"];
     [self.view addSubview:self.tableView];
@@ -84,6 +88,10 @@
 }
 
 -(void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag{
+    NSString *receiveMessage = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
+    if (receiveMessage) {
+        NSLog(@"cft-receiveMessage:%@",receiveMessage);
+    }
     NSLog(@"cft666-didReadData----");
     if(self.dataM.length == 0){
         // 获取总的数据包大小
@@ -121,19 +129,21 @@
                 [self.dataSource addObject:receiveMessage];
                 [self.tableView reloadData];
                 
-                //发送确认包，服务器回执
-                NSString *ackMessage = @"服务端回执";
-                NSData   *writeData = [ackMessage dataUsingEncoding:NSUTF8StringEncoding];
-                [self.acceptNewSocket writeData:writeData withTimeout:-1 tag:0];
+                
             }
         }
     }
+    //发送确认包，服务器回执
+    NSString *ackMessage = @"服务端回执";
+    NSData   *writeData = [ackMessage dataUsingEncoding:NSUTF8StringEncoding];
+    [self.acceptNewSocket writeData:writeData withTimeout:-1 tag:0];
     //需要等待数据到来
      [self.acceptNewSocket readDataWithTimeout:-1 tag:0];
 }
 
 -(void)saveImage{
     NSData *imgData = [self.dataM subdataWithRange:NSMakeRange(8, self.dataM.length - 8)];
+    NSLog(@"cft-totalLength:%ld",imgData.length);
     dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     dispatch_async(globalQueue, ^{
         UIImage *acceptImage = [UIImage imageWithData:imgData];
@@ -144,6 +154,7 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             UIImageWriteToSavedPhotosAlbum(acceptImage, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
             self.dataM = [NSMutableData data];
+            self.imageView.image = acceptImage;
         });
     });
 }
@@ -167,6 +178,16 @@
         _dataM = [NSMutableData data];
     }
     return _dataM;
+}
+
+- (UIImageView *)imageView{
+    if (!_imageView) {
+        _imageView = [[UIImageView alloc] init];
+        _imageView.frame = CGRectMake(0, CGRectGetMaxY(self.tableView.frame), CGRectGetMaxX(self.tableView.frame), 200);
+        _imageView.backgroundColor = [UIColor lightGrayColor];
+        _imageView.contentMode = UIViewContentModeScaleAspectFit;
+    }
+    return _imageView;
 }
 
 @end

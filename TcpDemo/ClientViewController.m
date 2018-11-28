@@ -9,8 +9,17 @@
 #import "ClientViewController.h"
 #import "GCDAsyncSocket.h"
 #import "constant.h"
+#import "Tools.h"
 
-@interface ClientViewController ()
+#define HTTP_HEADER  @"GET /TingShuo/share/rank_list.php?pagesize=10&page=0&user_id=30 HTTP/1.1\r\n" \
+"Accept: */*\r\n" \
+"Host: http://119.23.31.48\r\n" \
+"Accept-Language: zh-CN\r\n" \
+"Connection: Keep-Alive\r\n" \
+"\r\n"
+
+@interface ClientViewController ()<UINavigationControllerDelegate,UIImagePickerControllerDelegate,UIActionSheetDelegate>
+
 @property (weak, nonatomic) IBOutlet UITextField *textfield;
 @property (weak, nonatomic) IBOutlet UIButton *sendMessage;
 @property (weak, nonatomic) IBOutlet UIButton *quitBtn;
@@ -42,8 +51,12 @@
 }
 
 - (IBAction)sendImage:(id)sender {
+    
+    [self addImagePicker];
+}
+
+- (void)tcpSendImageWithImage:(UIImage *)image{
     if([self.clickSocket isConnected]){
-        UIImage *image = [UIImage imageNamed:@"tcp.png"];
         NSData *imageData = UIImagePNGRepresentation(image);
         
         //1、定义数据格式
@@ -68,33 +81,37 @@
 
 //发送数据
 - (IBAction)sendBtnClick:(id)sender {
-    NSString * sendText = self.textfield.text;
-    if(sendText.length == 0){
-        return;
+    if(self.textfield.text.length == 0){
+        self.textfield.text = @"hello";
     }
     if([self.clickSocket isConnected]){
-        NSData * msgData = [sendText dataUsingEncoding:NSUTF8StringEncoding];
         
-//        NSString *path = [[NSBundle mainBundle] pathForResource:@"imageJson" ofType:@"json"];
-//        NSData *msgData = [[NSData alloc] initWithContentsOfFile:path];
-        
-        NSMutableData *totalData = [NSMutableData data];
-        
-        //2、拼接总长度
-        unsigned int totalSize =  4 + 4 + (int)msgData.length;
-        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
-        [totalData appendData:totalSizeData];
-        
-        //3、拼接指令长度
-        unsigned int commandID =  MsgTypeString;
-        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
-        [totalData appendData:commandIDData];
-        
-        //4、拼接
-        [totalData appendData:msgData];
-        NSLog(@"cft-send totalData:%@",totalData);
-        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
+        [self sendMsg];
+//        NSData * msgData = [HTTP_HEADER dataUsingEncoding:NSUTF8StringEncoding];
+//        [self.clickSocket writeData:msgData withTimeout:-1 tag:0];
     }
+}
+
+- (void)sendMsg{
+    //        NSString *path = [[NSBundle mainBundle] pathForResource:@"imageJson" ofType:@"json"];
+    //        NSData *msgData = [[NSData alloc] initWithContentsOfFile:path];
+    NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
+    NSMutableData *totalData = [NSMutableData data];
+    
+    //2、拼接总长度
+    unsigned int totalSize =  4 + 4 + (int)msgData.length;
+    NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
+    [totalData appendData:totalSizeData];
+    
+    //3、拼接指令长度
+    unsigned int commandID =  MsgTypeString;
+    NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+    [totalData appendData:commandIDData];
+    
+    //4、拼接
+    [totalData appendData:msgData];
+    NSLog(@"cft-send totalData:%@",totalData);
+    [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
 }
 
 
@@ -127,4 +144,49 @@
     NSString * receiveMessage = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
     NSLog(@"【客户端】:收到回执---%@",receiveMessage);
 }
+
+
+
+
+
+#pragma mark - -------------------------------
+- (void)addImagePicker{
+    UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
+    imagePickerController.delegate = self;
+    imagePickerController.allowsEditing = YES;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"选取图片", nil) message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    //相机
+    UIAlertAction *cameraAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"拍照", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        
+        imagePickerController.sourceType = UIImagePickerControllerSourceTypeCamera;
+        [self presentViewController:imagePickerController animated:YES completion:^{}];
+    }];
+    
+    //相册
+    UIAlertAction *photosAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"从相册中选择", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        
+        imagePickerController.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+        [self presentViewController:imagePickerController animated:YES completion:^{}];
+    }];
+    //取消
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:NSLocalizedString(@"取消", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
+    }];
+    [alert addAction:photosAction];
+    if([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]){
+        [alert addAction:cameraAction];
+    }
+    [alert addAction:cancelAction];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary<NSString *,id> *)info {
+    [picker dismissViewControllerAnimated:YES completion:^{
+        UIImage *image = [info objectForKey:UIImagePickerControllerOriginalImage];
+//        UIImage *scaleImage = [Tools imageByScalingAndCroppingForSize:CGSizeMake(400, 400) withSourceImage:image];
+        [self tcpSendImageWithImage:image];
+    }];
+}
+
+
+
 @end
