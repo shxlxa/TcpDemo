@@ -9,12 +9,26 @@
 #ifndef constant_h
 #define constant_h
 
-#define MsgTypeImage  0x00000001
-#define MsgTypeString 0x00000002
-#define MsgTypeHeartBeat 0x00000003
+typedef NS_ENUM(NSUInteger, TCPMsgType) {
+    TCPMsgTypeHeartBeat = 1,
+    TCPMsgTypeString = 2,
+    TCPMsgTypeImage = 3,
+    TCPMsgTypeJson = 4
+};
+
+
 
 #define kIP  @"127.0.0.1"
 #define kPort 6789
+
+#define kLengthTotalSize 4
+#define kLengthMsgType   4
+
+//连接超时时间为60秒
+#define CONNECT_TIMEOUT     60
+#define READ_TIMEOUT        -1
+//发送数据超时时间为60秒
+#define WRITE_TIMEOUT       60
 
 
 #define kHeartBeatID @"heartBeat..."

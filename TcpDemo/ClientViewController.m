@@ -10,6 +10,7 @@
 #import "GCDAsyncSocket.h"
 #import "constant.h"
 #import "Tools.h"
+#import "TcpClientManager.h"
 
 #define HTTP_HEADER  @"GET /TingShuo/share/rank_list.php?pagesize=10&page=0&user_id=30 HTTP/1.1\r\n" \
 "Accept: */*\r\n" \
@@ -18,7 +19,7 @@
 "Connection: Keep-Alive\r\n" \
 "\r\n"
 
-@interface ClientViewController ()<UINavigationControllerDelegate,UIImagePickerControllerDelegate,UIActionSheetDelegate>
+@interface ClientViewController ()<UINavigationControllerDelegate,UIImagePickerControllerDelegate,UIActionSheetDelegate,TcpClientManagerDelegate>
 
 @property (weak, nonatomic) IBOutlet UITextField *textfield;
 @property (weak, nonatomic) IBOutlet UIButton *sendMessage;
@@ -29,6 +30,8 @@
 @property (nonatomic, strong) NSTimer  *heartBeatTimer;
 
 @property (nonatomic, assign) NSInteger heartBeatCount;
+
+@property (nonatomic, strong) TcpClientManager  *tcpManager;
 
 @end
 
@@ -41,8 +44,10 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    [self createClickSocket];
    // [self addTimer];
+    
+    _tcpManager = [[TcpClientManager alloc] init];
+    [_tcpManager connect];
 }
 
 - (void)addTimer{
@@ -55,12 +60,12 @@
 }
 
 - (IBAction)connectBtnClick:(id)sender {
-    [self createClickSocket];
+    [_tcpManager connect];
 }
 
 //断开连接
 - (IBAction)quitBtnClick:(id)sender {
-    [self.clickSocket disconnect];
+    [_tcpManager disconnect];
 }
 
 - (IBAction)sendImage:(id)sender {
@@ -69,52 +74,13 @@
 }
 
 - (void)tcpSendImageWithImage:(UIImage *)image{
-    if([self.clickSocket isConnected]){
-        NSData *imageData = UIImagePNGRepresentation(image);
-        
-        //1、定义数据格式
-        NSMutableData *totalData = [NSMutableData data];
-        
-        //2、拼接总长度
-        unsigned int totalSize =  4 + 4 + (int)imageData.length;
-        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
-        [totalData appendData:totalSizeData];
-        
-        //3、拼接指令长度
-        unsigned int commandID =  MsgTypeImage;
-        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
-        [totalData appendData:commandIDData];
-        
-        //4、拼接图片
-        [totalData appendData:imageData];
-        
-        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
-    }
+    NSData *imageData = UIImagePNGRepresentation(image);
+    [_tcpManager sendMsgWithType:TCPMsgTypeImage msgData:imageData];
 }
 
 - (void)sendHeartBeat{
-    if([self.clickSocket isConnected]){
-        
-        NSData *heartBeatData = [kHeartBeatID dataUsingEncoding:NSUTF8StringEncoding];
-        
-        //1、定义数据格式
-        NSMutableData *totalData = [NSMutableData data];
-        
-        //2、拼接总长度
-        unsigned int totalSize =  4 + 4 + (int)heartBeatData.length;
-        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
-        [totalData appendData:totalSizeData];
-        
-        //3、拼接指令长度
-        unsigned int commandID =  MsgTypeHeartBeat;
-        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
-        [totalData appendData:commandIDData];
-        
-        //4、拼接图片
-        [totalData appendData:heartBeatData];
-        
-        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
-    }
+    NSData *heartBeatData = [kHeartBeatID dataUsingEncoding:NSUTF8StringEncoding];
+    [_tcpManager sendMsgWithType:TCPMsgTypeHeartBeat msgData:heartBeatData];
 }
 
 //发送数据
@@ -122,88 +88,20 @@
     if(self.textfield.text.length == 0){
         self.textfield.text = @"hello";
     }
-    if([self.clickSocket isConnected]){
-        
-        [self sendMsg];
-//        NSData * msgData = [HTTP_HEADER dataUsingEncoding:NSUTF8StringEncoding];
-//        [self.clickSocket writeData:msgData withTimeout:-1 tag:0];
-    }
+    [self sendMsg];
 }
 
 - (void)sendMsg{
-    //        NSString *path = [[NSBundle mainBundle] pathForResource:@"imageJson" ofType:@"json"];
-    //        NSData *msgData = [[NSData alloc] initWithContentsOfFile:path];
-//    NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
-//    NSMutableData *totalData = [NSMutableData data];
-//
-//    //2、拼接总长度
-//    unsigned int totalSize =  4 + 4 + (int)msgData.length;
-//    NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
-//    [totalData appendData:totalSizeData];
-//
-//    //3、拼接指令长度
-//    unsigned int commandID =  MsgTypeString;
-//    NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
-//    [totalData appendData:commandIDData];
-//
-//    //4、拼接
-//    [totalData appendData:msgData];
-//    NSLog(@"cft-send totalData:%@",totalData);
-//    [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
-    
+ 
     NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
-    [self sendMsgWithType:TCPMsgTypeString msgData:msgData];
+//    [_tcpManager sendMsgWithType:TCPMsgTypeString msgData:msgData];
+    [_tcpManager sendNoTypeData:msgData];
 }
 
-- (void)sendMsgWithType:(TCPMsgType)type msgData:(NSData *)msgData{
-    NSMutableData *totalData = [NSMutableData data];
-    //2、拼接总长度
-    unsigned int totalSize =  4 + 4 + (int)msgData.length;
-    NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
-    [totalData appendData:totalSizeData];
+#pragma mark - TcpClientManagerDelegate
+- (void)didReceiveMsgWithData:(NSData *)data msgType:(TCPMsgType)msgType{
     
-    NSData *commandIDData = [NSData dataWithBytes:&type length:4];
-    [totalData appendData:commandIDData];
-    
-    //4、拼接
-    [totalData appendData:msgData];
-    NSLog(@"cft-send totalData:%@",totalData);
-    [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
 }
-
-
-//建立连接
-- (void)createClickSocket {
-    self.clickSocket = [[GCDAsyncSocket alloc]initWithDelegate:self  delegateQueue:dispatch_get_main_queue()];
-    //连接到服务器
-    [self.clickSocket connectToHost:kIP onPort:kPort withTimeout:-1 error:nil];
-}
-
-#pragma mark - GCDAsyncSocketDelegate
--(void)socket:(GCDAsyncSocket *)sock didConnectToHost:(NSString *)host port:(uint16_t)port{
-    NSLog(@"【客户端】:握手完成，完成连接");
-    //发送心跳包
-}
-
--(void)socket:(GCDAsyncSocket *)sock didWriteDataWithTag:(long)tag{
-    NSLog(@"[客户端]:发送数据完毕");
-    
-    //等待回执，需要调用readDataWithTimeout
-    [self.clickSocket readDataWithTimeout:-1 tag:0];
-}
-
--(void)socketDidDisconnect:(GCDAsyncSocket *)sock withError:(NSError *)err{
-    NSLog(@"【客户端】:已经与服务端断开连接 --%@",err);
-    //监控网络
-}
-
--(void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag{
-    NSString * receiveMessage = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    NSLog(@"【客户端】:收到回执---%@",receiveMessage);
-}
-
-
-
 
 
 #pragma mark - ------------------------------- select image --------------------------------------

@@ -23,6 +23,8 @@
 		21F8A5411D925DA60029AC35 /* AsyncUdpSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 21F8A53D1D925DA60029AC35 /* AsyncUdpSocket.m */; };
 		21F8A5431D926F3F0029AC35 /* tcp.png in Resources */ = {isa = PBXBuildFile; fileRef = 21F8A5421D926F3F0029AC35 /* tcp.png */; };
 		F1107B2321AE6AAE000078A1 /* Tools.m in Sources */ = {isa = PBXBuildFile; fileRef = F1107B2221AE6AAE000078A1 /* Tools.m */; };
+		F1107B2621AF8C56000078A1 /* TcpClientManager.m in Sources */ = {isa = PBXBuildFile; fileRef = F1107B2521AF8C56000078A1 /* TcpClientManager.m */; };
+		F1107B2C21AFB604000078A1 /* TcpServer.m in Sources */ = {isa = PBXBuildFile; fileRef = F1107B2A21AFB603000078A1 /* TcpServer.m */; };
 		F1E898A021ABEB1800C2BA6B /* imageJson.json in Resources */ = {isa = PBXBuildFile; fileRef = F1E8989F21ABEB1800C2BA6B /* imageJson.json */; };
 /* End PBXBuildFile section */
 
@@ -74,6 +76,10 @@
 		21F8A5421D926F3F0029AC35 /* tcp.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = tcp.png; path = ../../tcp.png; sourceTree = "<group>"; };
 		F1107B2121AE6AAE000078A1 /* Tools.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Tools.h; sourceTree = "<group>"; };
 		F1107B2221AE6AAE000078A1 /* Tools.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Tools.m; sourceTree = "<group>"; };
+		F1107B2421AF8C55000078A1 /* TcpClientManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TcpClientManager.h; sourceTree = "<group>"; };
+		F1107B2521AF8C56000078A1 /* TcpClientManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TcpClientManager.m; sourceTree = "<group>"; };
+		F1107B2A21AFB603000078A1 /* TcpServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TcpServer.m; sourceTree = "<group>"; };
+		F1107B2B21AFB604000078A1 /* TcpServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TcpServer.h; sourceTree = "<group>"; };
 		F1E8989E21ABDD4D00C2BA6B /* constant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = constant.h; sourceTree = "<group>"; };
 		F1E8989F21ABEB1800C2BA6B /* imageJson.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = imageJson.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -131,6 +137,10 @@
 				21F8A4FF1D925D430029AC35 /* AppDelegate.m */,
 				21F8A5011D925D430029AC35 /* ViewController.h */,
 				21F8A5021D925D430029AC35 /* ViewController.m */,
+				F1107B2B21AFB604000078A1 /* TcpServer.h */,
+				F1107B2A21AFB603000078A1 /* TcpServer.m */,
+				F1107B2421AF8C55000078A1 /* TcpClientManager.h */,
+				F1107B2521AF8C56000078A1 /* TcpClientManager.m */,
 				F1107B2121AE6AAE000078A1 /* Tools.h */,
 				F1107B2221AE6AAE000078A1 /* Tools.m */,
 				F1E8989F21ABEB1800C2BA6B /* imageJson.json */,
@@ -344,10 +354,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1107B2C21AFB604000078A1 /* TcpServer.m in Sources */,
 				21F8A5031D925D430029AC35 /* ViewController.m in Sources */,
 				21F8A53E1D925DA60029AC35 /* GCDAsyncSocket.m in Sources */,
 				21F8A5001D925D430029AC35 /* AppDelegate.m in Sources */,
 				F1107B2321AE6AAE000078A1 /* Tools.m in Sources */,
+				F1107B2621AF8C56000078A1 /* TcpClientManager.m in Sources */,
 				21F8A5411D925DA60029AC35 /* AsyncUdpSocket.m in Sources */,
 				21F8A4FD1D925D430029AC35 /* main.m in Sources */,
 				21F8A53F1D925DA60029AC35 /* GCDAsyncUdpSocket.m in Sources */,
