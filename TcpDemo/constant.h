@@ -11,6 +11,13 @@
 
 #define MsgTypeImage  0x00000001
 #define MsgTypeString 0x00000002
+#define MsgTypeHeartBeat 0x00000003
+
+#define kIP  @"127.0.0.1"
+#define kPort 6789
+
+
+#define kHeartBeatID @"heartBeat..."
 
 
 #endif /* constant_h */

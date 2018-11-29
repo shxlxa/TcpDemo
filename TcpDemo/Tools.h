@@ -13,6 +13,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface Tools : NSObject
 
++ (UIImage*)imageByScalingAndCroppingForSize:(CGSize)targetSize withSourceImage:(UIImage *)sourceImage;
+
 @end
 
 NS_ASSUME_NONNULL_END

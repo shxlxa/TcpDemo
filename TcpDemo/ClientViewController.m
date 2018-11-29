@@ -26,6 +26,10 @@
 
 @property (nonatomic) GCDAsyncSocket *clickSocket;
 
+@property (nonatomic, strong) NSTimer  *heartBeatTimer;
+
+@property (nonatomic, assign) NSInteger heartBeatCount;
+
 @end
 
 @implementation ClientViewController
@@ -38,7 +42,16 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self createClickSocket];
-    
+   // [self addTimer];
+}
+
+- (void)addTimer{
+    _heartBeatCount = 0;
+    _heartBeatTimer = [NSTimer scheduledTimerWithTimeInterval:3.0 target:self selector:@selector(heartBeatAction:) userInfo:nil repeats:YES];
+}
+
+- (void)heartBeatAction:(NSTimer *)timer{
+    [self sendHeartBeat];
 }
 
 - (IBAction)connectBtnClick:(id)sender {
@@ -79,6 +92,31 @@
     }
 }
 
+- (void)sendHeartBeat{
+    if([self.clickSocket isConnected]){
+        
+        NSData *heartBeatData = [kHeartBeatID dataUsingEncoding:NSUTF8StringEncoding];
+        
+        //1、定义数据格式
+        NSMutableData *totalData = [NSMutableData data];
+        
+        //2、拼接总长度
+        unsigned int totalSize =  4 + 4 + (int)heartBeatData.length;
+        NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
+        [totalData appendData:totalSizeData];
+        
+        //3、拼接指令长度
+        unsigned int commandID =  MsgTypeHeartBeat;
+        NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+        [totalData appendData:commandIDData];
+        
+        //4、拼接图片
+        [totalData appendData:heartBeatData];
+        
+        [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
+    }
+}
+
 //发送数据
 - (IBAction)sendBtnClick:(id)sender {
     if(self.textfield.text.length == 0){
@@ -95,17 +133,36 @@
 - (void)sendMsg{
     //        NSString *path = [[NSBundle mainBundle] pathForResource:@"imageJson" ofType:@"json"];
     //        NSData *msgData = [[NSData alloc] initWithContentsOfFile:path];
-    NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
-    NSMutableData *totalData = [NSMutableData data];
+//    NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
+//    NSMutableData *totalData = [NSMutableData data];
+//
+//    //2、拼接总长度
+//    unsigned int totalSize =  4 + 4 + (int)msgData.length;
+//    NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
+//    [totalData appendData:totalSizeData];
+//
+//    //3、拼接指令长度
+//    unsigned int commandID =  MsgTypeString;
+//    NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+//    [totalData appendData:commandIDData];
+//
+//    //4、拼接
+//    [totalData appendData:msgData];
+//    NSLog(@"cft-send totalData:%@",totalData);
+//    [self.clickSocket writeData:totalData withTimeout:-1 tag:0];
     
+    NSData * msgData = [self.textfield.text dataUsingEncoding:NSUTF8StringEncoding];
+    [self sendMsgWithType:TCPMsgTypeString msgData:msgData];
+}
+
+- (void)sendMsgWithType:(TCPMsgType)type msgData:(NSData *)msgData{
+    NSMutableData *totalData = [NSMutableData data];
     //2、拼接总长度
     unsigned int totalSize =  4 + 4 + (int)msgData.length;
     NSData *totalSizeData = [NSData dataWithBytes:&totalSize length:4];
     [totalData appendData:totalSizeData];
     
-    //3、拼接指令长度
-    unsigned int commandID =  MsgTypeString;
-    NSData *commandIDData = [NSData dataWithBytes:&commandID length:4];
+    NSData *commandIDData = [NSData dataWithBytes:&type length:4];
     [totalData appendData:commandIDData];
     
     //4、拼接
@@ -119,7 +176,7 @@
 - (void)createClickSocket {
     self.clickSocket = [[GCDAsyncSocket alloc]initWithDelegate:self  delegateQueue:dispatch_get_main_queue()];
     //连接到服务器
-    [self.clickSocket connectToHost:@"127.0.0.1" onPort:6789 withTimeout:-1 error:nil];
+    [self.clickSocket connectToHost:kIP onPort:kPort withTimeout:-1 error:nil];
 }
 
 #pragma mark - GCDAsyncSocketDelegate
@@ -149,7 +206,7 @@
 
 
 
-#pragma mark - -------------------------------
+#pragma mark - ------------------------------- select image --------------------------------------
 - (void)addImagePicker{
     UIImagePickerController *imagePickerController = [[UIImagePickerController alloc] init];
     imagePickerController.delegate = self;
@@ -182,8 +239,8 @@
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary<NSString *,id> *)info {
     [picker dismissViewControllerAnimated:YES completion:^{
         UIImage *image = [info objectForKey:UIImagePickerControllerOriginalImage];
-//        UIImage *scaleImage = [Tools imageByScalingAndCroppingForSize:CGSizeMake(400, 400) withSourceImage:image];
-        [self tcpSendImageWithImage:image];
+        UIImage *scaleImage = [Tools imageByScalingAndCroppingForSize:CGSizeMake(400, 400) withSourceImage:image];
+        [self tcpSendImageWithImage:scaleImage];
     }];
 }
 

@@ -20,13 +20,15 @@
 
 //保存接收链接时生成的新的socket
 @property(nonatomic)GCDAsyncSocket   *acceptNewSocket;
-@property (weak, nonatomic) IBOutlet UIImageView *icon;
 
 @property (strong ,nonatomic) NSMutableData *dataM;
 @property(assign ,nonatomic)unsigned int totalSize;
 @property (assign ,nonatomic)unsigned int currentCommandId;
 
 @property (nonatomic, strong) UIImageView  *imageView;
+
+@property (nonatomic, strong) NSTimer  *heartTimer;
+@property (nonatomic, assign) NSInteger timerCount;
 
 @end
 
@@ -37,6 +39,17 @@
     [self createTableView];
     [self createSocket];
     [self.view addSubview:self.imageView];
+   // [self addTimer];
+}
+
+- (void)addTimer{
+    _timerCount = 0;
+    _heartTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(heartBeatAction:) userInfo:nil repeats:YES];
+}
+
+- (void)heartBeatAction:(NSTimer *)timer{
+    _timerCount ++;
+    NSLog(@"_timerCount:%ld",_timerCount);
 }
 
 - (void)createTableView{
@@ -59,7 +72,7 @@
     self.serverSocket = [[GCDAsyncSocket alloc]initWithDelegate:self  delegateQueue:dispatch_get_main_queue()];
     
     //监听端口
-    [self.serverSocket acceptOnPort:6789 error:nil];
+    [self.serverSocket acceptOnPort:kPort error:nil];
     
 }
 
@@ -88,10 +101,7 @@
 }
 
 -(void)socket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag{
-    NSString *receiveMessage = [[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    if (receiveMessage) {
-        NSLog(@"cft-receiveMessage:%@",receiveMessage);
-    }
+
     NSLog(@"cft666-didReadData----");
     if(self.dataM.length == 0){
         // 获取总的数据包大小
@@ -128,8 +138,15 @@
                 NSLog(@"cft-receive msg:%@",receiveMessage);
                 [self.dataSource addObject:receiveMessage];
                 [self.tableView reloadData];
-                
-                
+            }
+        }else if (self.currentCommandId == MsgTypeHeartBeat){
+            NSData *msgData = [self.dataM subdataWithRange:NSMakeRange(8, self.dataM.length - 8)];
+            NSString *receiveMessage = [[NSString alloc]initWithData:msgData encoding:NSUTF8StringEncoding];
+            if(receiveMessage){
+                //清空data
+                self.dataM = [NSMutableData data];
+                _timerCount = 0;
+                NSLog(@"cft-receive msg:%@",receiveMessage);
             }
         }
     }
@@ -152,7 +169,7 @@
             return;
         }
         dispatch_async(dispatch_get_main_queue(), ^{
-            UIImageWriteToSavedPhotosAlbum(acceptImage, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+//            UIImageWriteToSavedPhotosAlbum(acceptImage, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
             self.dataM = [NSMutableData data];
             self.imageView.image = acceptImage;
         });
@@ -188,6 +205,11 @@
         _imageView.contentMode = UIViewContentModeScaleAspectFit;
     }
     return _imageView;
+}
+
+- (void)dealloc{
+    [_heartTimer invalidate];
+    _heartTimer = nil;
 }
 
 @end
